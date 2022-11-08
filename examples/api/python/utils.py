@@ -16,6 +16,7 @@
 
 import cvc5
 from cvc5 import Kind
+from imgman_dsl import *
 
 # Get the string version of define-fun command.
 # @param f the function to print
@@ -35,6 +36,45 @@ def define_fun_to_string(f, params, body):
         result += "(" + str(params[i]) + " " + str(params[i].getSort()) + ")"
     result += ") " + str(sort) + " " + str(body) + ")"
     return result
+
+constants = {"MouthOpen": MouthOpen(), 
+            "EyesOpen": EyesOpen(), 
+            "BelowAge18": BelowAge(18), 
+            "Smile": IsSmiling(), 
+            "IsPrice": IsPrice(),
+            "IsPhoneNumber": IsPhoneNumber(), 
+            "TypeFace": IsFace(), 
+            "TypeText": IsText(),
+            "GetLeft": GetLeft(), 
+            "GetRight": GetRight(), 
+            "GetAbove": GetAbove(), 
+            "GetBelow": GetBelow(), 
+            "GetNext": GetNext(), 
+            "GetPrev": GetPrev(), 
+            "GetChildren": GetContains(), 
+            "GetParents": GetIsContained()}
+
+def constant_to_prog(s, id_to_text):
+    if s in constants:
+        return constants[s]
+    if s.startswith("Name"):
+        return IsObject(s[4:].replace('1', ' '))
+    if s.startswith("Text"):
+        return MatchesWord(id_to_text[int(s[4:])])
+    if s.startswith("Index"):
+        return GetFace(int(s[5:]))
+
+def expression_to_imgman(body, id_to_pred, id_to_text):
+    if str(body[0]).startswith('match'):
+        return constant_to_prog(id_to_pred[int(str(body[0])[5:])], id_to_text)
+    elif str(body.getKind()) == "Kind.SET_UNION":
+        return Union([expression_to_imgman(body[0], id_to_pred, id_to_text), expression_to_imgman(body[1], id_to_pred, id_to_text)])
+    elif str(body.getKind()) == "Kind.SET_INTER":
+        return Intersection([expression_to_imgman(body[0], id_to_pred, id_to_text), expression_to_imgman(body[1], id_to_pred, id_to_text)])
+    elif str(body.getKind()) == "Kind.SET_MINUS":
+        return Complement(expression_to_imgman(body[1], id_to_pred, id_to_text))
+    else:
+        return None
 
 
 # Print solutions for synthesis conjecture to the standard output stream.
